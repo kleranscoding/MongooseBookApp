@@ -67,7 +67,7 @@ var portNum= 3000;
 ///////////////////
 
 
-
+//***** ========== BOOKS related =========== *****//
 
 // define a root route: localhost:3000/
 app.get('/', (req, res)=> {
@@ -97,7 +97,11 @@ app.get('/api/books/:id', (req, res)=> {
   // find one book by its id
   console.log('books show', req.params.id);
   db.Book.findById(req.params.id).populate('author').exec((err,books)=>{
-    if (err) { console.log('index error: '+err); res.sendStatus(500); }
+    if (err) { 
+      console.log('index error: '+err); res.sendStatus(500); 
+    } else if (books==null) {
+      res.sendStatus(404);
+    } 
     res.json(books);
   });
 });
@@ -110,17 +114,17 @@ app.post('/api/books', (req, res)=> {
     image: req.body.image,
     release_date: req.body.release_date,
   });
-  db.Book.findOne({name: req.body.author},(err, author)=>{
-    
+  db.Author.findOne({name: req.body.author},(err, author)=>{
+    console.log(author);
     if (author==null) {
-      author= new db.Author({ name: req.body.author, });
+      author= new db.Author({ name: req.body.author, alive: false });
       author.save((err,newAuthor)=>{
         if (err) { console.log("create new author error: " + err); }
       });
     }
     newBook.author = author;
     // add newBook to database
-    newBook.save(function(err, book){
+    newBook.save((err, book)=> {
       if (err) { console.log("create error: " + err); }
       console.log("created ", book.title);
       res.json(book);
@@ -166,6 +170,64 @@ app.delete('/api/books/:id', (req, res)=> {
     if (err) { console.log('error: '+err); res.sendStatus(500); }
     res.json(books);
   });
+});
+
+
+//***** ========== AUTHORS related =========== *****//
+
+app.get('/api/authors', (req, res)=>{
+  db.Author.find({},(err, authors)=>{
+    if (err) { console.log('error: '+err); res.sendStatus(500); }
+    res.json(authors);
+  });
+});
+
+
+
+//***** ========== CHARACTERS related =========== *****//
+
+
+app.post('/api/books/:book_id/characters', (req, res)=>{
+  var bookId = req.params.book_id;
+  db.Book.findById(bookId)
+    .populate('author')
+    .exec((err, foundBook)=> {
+      // handle errors
+      if (err) { 
+        res.status(500).json({error: err.message}); 
+      } else if (foundBook==null) { 
+        res.status(404).json({error: "No Book found by this ID"});
+      } else {
+        // push req.body into characters array
+        foundBook.characters.push(req.body);
+        // save the book with the new character
+        foundBook.save((err, books)=> {
+          if (err) { console.log("create error: " + err); }
+          // send the entire book back
+          res.json(books);
+        });
+      }
+    }
+  );
+});
+
+
+app.get('/api/books/:book_id/characters', (req, res)=>{
+  var bookId = req.params.book_id;
+  db.Book.findById(bookId)
+    .populate('author')
+    .exec((err, foundBook)=> {
+      // handle errors
+      if (err) { 
+        res.status(500).json({error: err.message}); 
+      } else if (foundBook==null) { 
+        res.status(404).json({error: "No Book found by this ID"});
+      } else {
+        // push req.body into characters array
+        res.json(foundBook.characters);
+      }
+    }
+  );
 });
 
 
